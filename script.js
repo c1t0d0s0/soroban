@@ -18,8 +18,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const levelBtns = document.querySelectorAll('.level-btn');
     const canvas = document.getElementById('confetti-canvas');
 
-    // Tutorial DOM Elements
+    // Header Actions
     const guideBtn = document.getElementById('guide-btn');
+    const historyBtn = document.getElementById('history-btn');
+
+    // Tutorial DOM Elements
     const tutorialModal = document.getElementById('tutorial-modal');
     const modalBackdrop = document.getElementById('modal-backdrop');
     const tutorialCloseBtn = document.getElementById('tutorial-close-btn');
@@ -30,8 +33,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const tutorialNextBtn = document.getElementById('tutorial-next-btn');
     const tutorialFinishBtn = document.getElementById('tutorial-finish-btn');
 
+    // Learning History DOM Elements
+    const historyModal = document.getElementById('history-modal');
+    const historyModalBackdrop = document.getElementById('history-modal-backdrop');
+    const historyCloseBtn = document.getElementById('history-close-btn');
+    const historyResetBtn = document.getElementById('history-reset-btn');
+    const historyDoneBtn = document.getElementById('history-done-btn');
+
     // App State
     let currentAnswer = 0;
+    let currentQuestionEquation = '';
+    let questionStartTime = Date.now();
     let maxDigits = 2; // Default max digits: 2 digits (1〜2けた)
     let starCount = 0;
     let streakCount = 0;
@@ -39,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let countdownInterval = null;
     let isSoundMuted = false;
     const NUM_RODS = 5;
+    const HISTORY_STORAGE_KEY = 'soroban_learning_stats_v1';
 
     // --- Web Audio API Wood Bead Synthesizer ---
     let audioCtx = null;
@@ -162,7 +175,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const count = Math.max(1, Math.min(4, beadCount));
 
             for (let i = 0; i < count; i++) {
-                // Micro-staggering for multi-bead impacts (8-14ms apart)
                 const delay = i * (0.009 + Math.random() * 0.004);
                 const isMainImpact = (i === count - 1) || (count === 1);
                 const volume = isMainImpact ? 1.0 : 0.65;
@@ -269,7 +281,294 @@ document.addEventListener('DOMContentLoaded', () => {
         soundIconEl.textContent = isSoundMuted ? '🔇' : '🔊';
     });
 
-    // --- Soroban UI & Physics Logic ---
+    // --- Learning History & Stats System (localStorage) ---
+    function getLearningHistory() {
+        try {
+            const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
+            if (raw) return JSON.parse(raw);
+        } catch (e) {}
+        return {
+            totalQuestions: 0,
+            totalCorrect: 0,
+            maxStreak: 0,
+            byLevel: {
+                2: { total: 0, correct: 0, totalTimeSec: 0 },
+                3: { total: 0, correct: 0, totalTimeSec: 0 },
+                5: { total: 0, correct: 0, totalTimeSec: 0 }
+            },
+            recentLogs: []
+        };
+    }
+
+    function saveLearningHistory(data) {
+        try {
+            localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(data));
+        } catch (e) {}
+    }
+
+    function recordQuestionResult(isCorrect, equationText, userVal, correctAnswer, elapsedSec) {
+        const history = getLearningHistory();
+        history.totalQuestions++;
+        if (isCorrect) history.totalCorrect++;
+        if (streakCount > history.maxStreak) history.maxStreak = streakCount;
+
+        const levelKey = maxDigits === 2 ? 2 : (maxDigits === 3 ? 3 : 5);
+        if (!history.byLevel[levelKey]) {
+            history.byLevel[levelKey] = { total: 0, correct: 0, totalTimeSec: 0 };
+        }
+        history.byLevel[levelKey].total++;
+        if (isCorrect) {
+            history.byLevel[levelKey].correct++;
+            history.byLevel[levelKey].totalTimeSec += elapsedSec;
+        }
+
+        // Add to recent logs (keep up to 30)
+        history.recentLogs.unshift({
+            equation: equationText,
+            userVal: userVal,
+            correctAnswer: correctAnswer,
+            isCorrect: isCorrect,
+            elapsedSec: Math.round(elapsedSec * 10) / 10,
+            timestamp: Date.now()
+        });
+        if (history.recentLogs.length > 30) {
+            history.recentLogs.pop();
+        }
+
+        saveLearningHistory(history);
+    }
+
+    function renderHistoryModal() {
+        const history = getLearningHistory();
+        const total = history.totalQuestions;
+        const correct = history.totalCorrect;
+        const accuracy = total > 0 ? Math.round((correct / total) * 100) : 0;
+        
+        let totalTime = 0;
+        let totalCorrectForSpeed = 0;
+        Object.values(history.byLevel).forEach(lvl => {
+            totalTime += lvl.totalTimeSec || 0;
+            totalCorrectForSpeed += lvl.correct || 0;
+        });
+        const avgSpeed = totalCorrectForSpeed > 0 ? (totalTime / totalCorrectForSpeed).toFixed(1) + 's' : '-';
+
+        const totalCountEl = document.getElementById('hist-total-count');
+        const accRateEl = document.getElementById('hist-accuracy-rate');
+        const maxStreakEl = document.getElementById('hist-max-streak');
+        const avgSpeedEl = document.getElementById('hist-avg-speed');
+        const levelStatsList = document.getElementById('level-stats-list');
+        const historyLogsContainer = document.getElementById('history-logs-container');
+
+        if (totalCountEl) totalCountEl.textContent = total.toLocaleString('ja-JP');
+        if (accRateEl) accRateEl.textContent = `${accuracy}%`;
+        if (maxStreakEl) maxStreakEl.textContent = history.maxStreak;
+        if (avgSpeedEl) avgSpeedEl.textContent = avgSpeed;
+
+        // Render Level breakdown
+        if (levelStatsList) {
+            levelStatsList.innerHTML = '';
+            const levelDefs = [
+                { key: 2, label: '1〜2けた' },
+                { key: 3, label: '3〜4けた' },
+                { key: 5, label: '5けたまで' }
+            ];
+
+            levelDefs.forEach(def => {
+                const stat = history.byLevel[def.key] || { total: 0, correct: 0, totalTimeSec: 0 };
+                const lvlAcc = stat.total > 0 ? Math.round((stat.correct / stat.total) * 100) : 0;
+                const lvlSpeed = stat.correct > 0 ? (stat.totalTimeSec / stat.correct).toFixed(1) + 's' : '-';
+
+                const row = document.createElement('div');
+                row.className = 'level-stat-row';
+                row.innerHTML = `
+                    <div class="level-stat-header">
+                        <span class="level-stat-name">${def.label}</span>
+                        <span class="level-stat-nums">
+                            正解: <strong>${stat.correct}</strong> / ${stat.total} (${lvlAcc}%)
+                            ${lvlSpeed !== '-' ? ` · <span title="平均秒数">⚡${lvlSpeed}</span>` : ''}
+                        </span>
+                    </div>
+                    <div class="level-progress-track">
+                        <div class="level-progress-bar" style="width: ${lvlAcc}%;"></div>
+                    </div>
+                `;
+                levelStatsList.appendChild(row);
+            });
+        }
+
+        // Render Recent Logs
+        if (historyLogsContainer) {
+            historyLogsContainer.innerHTML = '';
+            if (!history.recentLogs || history.recentLogs.length === 0) {
+                historyLogsContainer.innerHTML = '<div class="empty-history-text">まだもんだいのきろくがありません。<br>れんしゅうをはじめよう！✨</div>';
+            } else {
+                history.recentLogs.forEach(log => {
+                    const item = document.createElement('div');
+                    item.className = 'history-log-item';
+                    item.innerHTML = `
+                        <div class="log-left">
+                            <span class="log-badge">${log.isCorrect ? '✅' : '❌'}</span>
+                            <span class="log-equation">${log.equation} = ${log.isCorrect ? log.correctAnswer : log.userVal}</span>
+                        </div>
+                        <div class="log-right">
+                            <span class="log-time-chip">⏱️ ${log.elapsedSec}s</span>
+                        </div>
+                    `;
+                    historyLogsContainer.appendChild(item);
+                });
+            }
+        }
+    }
+
+    function openHistoryModal() {
+        getAudioContext();
+        renderHistoryModal();
+        if (historyModal) {
+            historyModal.classList.remove('hidden');
+        }
+    }
+
+    function closeHistoryModal() {
+        if (historyModal) {
+            historyModal.classList.add('hidden');
+        }
+    }
+
+    // --- Unified Pointer & Swipe Gesture Engine for Beads ---
+    function bindBeadPointerEvents(bead, board, onValueChange) {
+        let startY = 0;
+        let isDragging = false;
+        let pointerId = null;
+
+        bead.addEventListener('pointerdown', (e) => {
+            if (e.button !== 0) return;
+            getAudioContext();
+            startY = e.clientY;
+            isDragging = false;
+            pointerId = e.pointerId;
+            try { bead.setPointerCapture(e.pointerId); } catch (err) {}
+        });
+
+        bead.addEventListener('pointermove', (e) => {
+            if (pointerId === null || e.pointerId !== pointerId) return;
+            const deltaY = e.clientY - startY;
+            if (!isDragging && Math.abs(deltaY) > 8) {
+                isDragging = true;
+                bead.classList.add('dragging');
+            }
+        });
+
+        const handlePointerEnd = (e) => {
+            if (pointerId === null || e.pointerId !== pointerId) return;
+            const deltaY = e.clientY - startY;
+            bead.classList.remove('dragging');
+
+            if (isDragging && Math.abs(deltaY) >= 8) {
+                const direction = deltaY < 0 ? 'up' : 'down';
+                processBeadAction(bead, board, onValueChange, direction);
+            } else {
+                processBeadAction(bead, board, onValueChange, 'toggle');
+            }
+
+            try { bead.releasePointerCapture(e.pointerId); } catch (err) {}
+            pointerId = null;
+            isDragging = false;
+        };
+
+        bead.addEventListener('pointerup', handlePointerEnd);
+        bead.addEventListener('pointercancel', handlePointerEnd);
+    }
+
+    function processBeadAction(clickedBead, board, onValueChange, action = 'toggle') {
+        getAudioContext();
+
+        const rod = clickedBead.closest('.rod');
+        const rods = Array.from(board.querySelectorAll('.rod'));
+        const rodIndex = rods.indexOf(rod);
+        const isHeaven = clickedBead.classList.contains('heaven-bead');
+        const isActive = clickedBead.classList.contains('active');
+
+        let movedCount = 0;
+        let isBeamHit = true;
+        let stateChanged = false;
+
+        if (isHeaven) {
+            // Heaven bead: Beam is below it. Moving DOWN = activate (+5). Moving UP = deactivate (-5).
+            let targetActive = !isActive;
+            if (action === 'down') {
+                targetActive = true;
+            } else if (action === 'up') {
+                targetActive = false;
+            }
+
+            if (targetActive !== isActive) {
+                clickedBead.classList.toggle('active', targetActive);
+                isBeamHit = targetActive;
+                movedCount = 1;
+                stateChanged = true;
+            }
+        } else {
+            // Earth bead: Beam is above it. Moving UP = activate (+1..+4). Moving DOWN = deactivate (-1..-4).
+            const earthBeads = Array.from(rod.querySelectorAll('.earth-bead'));
+            const clickedIndex = earthBeads.indexOf(clickedBead);
+
+            let shouldDeactivate = false;
+            if (action === 'toggle') {
+                shouldDeactivate = isActive;
+            } else if (action === 'down') {
+                shouldDeactivate = true;
+            } else if (action === 'up') {
+                shouldDeactivate = false;
+            }
+
+            if (shouldDeactivate) {
+                // Deactivate this bead and all beads below it
+                isBeamHit = false;
+                for (let i = clickedIndex; i < earthBeads.length; i++) {
+                    if (earthBeads[i].classList.contains('active')) {
+                        movedCount++;
+                        earthBeads[i].classList.remove('active');
+                        stateChanged = true;
+                    }
+                }
+            } else {
+                // Activate this bead and all beads above it
+                isBeamHit = true;
+                for (let i = 0; i <= clickedIndex; i++) {
+                    if (!earthBeads[i].classList.contains('active')) {
+                        movedCount++;
+                        earthBeads[i].classList.add('active');
+                        stateChanged = true;
+                    }
+                }
+            }
+        }
+
+        if (stateChanged) {
+            if (movedCount === 0) movedCount = 1;
+            playBeadClickSound(movedCount, { rodIndex, isBeamHit });
+            if (navigator.vibrate) {
+                try { navigator.vibrate(10); } catch (e) {}
+            }
+        }
+
+        if (onValueChange) {
+            let totalVal = 0;
+            rods.forEach((r, idx) => {
+                let rodVal = 0;
+                r.querySelectorAll('.bead.active').forEach(b => {
+                    rodVal += parseInt(b.dataset.value, 10);
+                });
+                const power = rods.length - 1 - idx;
+                totalVal += rodVal * Math.pow(10, power);
+            });
+            onValueChange(totalVal, board);
+        } else {
+            updateSorobanValueDisplay();
+        }
+    }
+
+    // --- Main Soroban Board Generation ---
     function createSoroban() {
         sorobanElement.innerHTML = '';
         for (let i = 0; i < NUM_RODS; i++) {
@@ -285,7 +584,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const heavenBead = document.createElement('div');
             heavenBead.className = 'bead heaven-bead';
             heavenBead.dataset.value = 5;
-            heavenBead.addEventListener('click', handleBeadClick);
+            bindBeadPointerEvents(heavenBead, sorobanElement, null);
             rod.appendChild(heavenBead);
 
             // Earth Beads Container (1-values)
@@ -295,58 +594,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const earthBead = document.createElement('div');
                 earthBead.className = 'bead earth-bead';
                 earthBead.dataset.value = 1;
-                earthBead.addEventListener('click', handleBeadClick);
+                bindBeadPointerEvents(earthBead, sorobanElement, null);
                 earthBeadsContainer.appendChild(earthBead);
             }
             rod.appendChild(earthBeadsContainer);
             sorobanElement.appendChild(rod);
         }
-        updateSorobanValueDisplay();
-    }
-
-    function handleBeadClick(event) {
-        getAudioContext(); // Ensure AudioContext is initialized on click
-
-        const clickedBead = event.currentTarget;
-        const rod = clickedBead.closest('.rod');
-        const rods = Array.from(sorobanElement.querySelectorAll('.rod'));
-        const rodIndex = rods.indexOf(rod);
-        const isActive = clickedBead.classList.contains('active');
-
-        let movedCount = 0;
-        let isBeamHit = true;
-
-        if (clickedBead.classList.contains('heaven-bead')) {
-            clickedBead.classList.toggle('active');
-            isBeamHit = !isActive; // If previously inactive, moving toward beam
-            movedCount = 1;
-        } else if (clickedBead.classList.contains('earth-bead')) {
-            const earthBeads = Array.from(rod.querySelectorAll('.earth-bead'));
-            const clickedIndex = earthBeads.indexOf(clickedBead);
-
-            if (isActive) {
-                // Deactivate this bead and all beads below it (slide away from beam)
-                isBeamHit = false;
-                for (let i = clickedIndex; i < earthBeads.length; i++) {
-                    if (earthBeads[i].classList.contains('active')) {
-                        movedCount++;
-                        earthBeads[i].classList.remove('active');
-                    }
-                }
-            } else {
-                // Activate this bead and all beads above it (slide toward beam)
-                isBeamHit = true;
-                for (let i = 0; i <= clickedIndex; i++) {
-                    if (!earthBeads[i].classList.contains('active')) {
-                        movedCount++;
-                        earthBeads[i].classList.add('active');
-                    }
-                }
-            }
-        }
-
-        if (movedCount === 0) movedCount = 1;
-        playBeadClickSound(movedCount, { rodIndex, isBeamHit });
         updateSorobanValueDisplay();
     }
 
@@ -373,20 +626,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function clearSoroban(playSound = false) {
-        const beads = sorobanElement.querySelectorAll('.bead.active');
-        const activeCount = beads.length;
-        beads.forEach(bead => bead.classList.remove('active'));
-        updateSorobanValueDisplay();
+        const rods = Array.from(sorobanElement.querySelectorAll('.rod'));
+        const totalActive = sorobanElement.querySelectorAll('.bead.active').length;
 
-        if (playSound && activeCount > 0) {
+        if (playSound && totalActive > 0) {
             getAudioContext();
-            playClearSweepSound(activeCount);
+            playClearSweepSound(totalActive);
         }
+
+        rods.forEach((rod, index) => {
+            setTimeout(() => {
+                rod.classList.add('gohasan-sweep');
+                rod.querySelectorAll('.bead.active').forEach(b => b.classList.remove('active'));
+                updateSorobanValueDisplay();
+
+                setTimeout(() => {
+                    rod.classList.remove('gohasan-sweep');
+                }, 220);
+            }, index * 26);
+        });
     }
 
     // --- Question Generation Engine ---
     function generateQuestion() {
         clearCountdownTimer();
+        questionStartTime = Date.now();
 
         let maxVal = 99999;
         let minVal = 10;
@@ -410,12 +674,14 @@ document.addEventListener('DOMContentLoaded', () => {
             num1 = getRandomNumber(Math.floor(maxVal * 0.7), minVal);
             num2 = getRandomNumber(maxVal - num1, 1);
             currentAnswer = num1 + num2;
-            questionElement.textContent = `${num1.toLocaleString('ja-JP')} + ${num2.toLocaleString('ja-JP')} = ?`;
+            currentQuestionEquation = `${num1.toLocaleString('ja-JP')} + ${num2.toLocaleString('ja-JP')}`;
+            questionElement.textContent = `${currentQuestionEquation} = ?`;
         } else {
             num1 = getRandomNumber(maxVal, minVal + 5);
             num2 = getRandomNumber(num1 - 1, 1);
             currentAnswer = num1 - num2;
-            questionElement.textContent = `${num1.toLocaleString('ja-JP')} - ${num2.toLocaleString('ja-JP')} = ?`;
+            currentQuestionEquation = `${num1.toLocaleString('ja-JP')} - ${num2.toLocaleString('ja-JP')}`;
+            questionElement.textContent = `${currentQuestionEquation} = ?`;
         }
 
         // Reset Result View & Button States
@@ -475,9 +741,12 @@ document.addEventListener('DOMContentLoaded', () => {
     function checkAnswer() {
         getAudioContext();
         const userVal = getSorobanValue();
+        const elapsedSec = (Date.now() - questionStartTime) / 1000;
+        const isCorrect = (userVal === currentAnswer);
+
         resultArea.classList.remove('hidden', 'correct-style', 'incorrect-style');
 
-        if (userVal === currentAnswer) {
+        if (isCorrect) {
             // Correct Answer!
             resultArea.classList.add('correct-style');
             resultBadge.textContent = 'せいかい！🎉';
@@ -501,6 +770,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
             playIncorrectSound();
         }
+
+        recordQuestionResult(isCorrect, currentQuestionEquation, userVal, currentAnswer, elapsedSec);
 
         checkButton.disabled = true;
         newQuestionButton.disabled = false;
@@ -804,7 +1075,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const heavenBead = document.createElement('div');
             heavenBead.className = 'bead heaven-bead';
             heavenBead.dataset.value = 5;
-            heavenBead.addEventListener('click', (e) => handleTutorialBeadClick(e, board, onValueChange));
+            bindBeadPointerEvents(heavenBead, board, onValueChange);
             rod.appendChild(heavenBead);
 
             const earthContainer = document.createElement('div');
@@ -813,7 +1084,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const earthBead = document.createElement('div');
                 earthBead.className = 'bead earth-bead';
                 earthBead.dataset.value = 1;
-                earthBead.addEventListener('click', (e) => handleTutorialBeadClick(e, board, onValueChange));
+                bindBeadPointerEvents(earthBead, board, onValueChange);
                 earthContainer.appendChild(earthBead);
             }
             rod.appendChild(earthContainer);
@@ -821,64 +1092,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         container.appendChild(board);
-    }
-
-    function handleTutorialBeadClick(event, board, onValueChange) {
-        getAudioContext();
-
-        const clickedBead = event.currentTarget;
-        const rod = clickedBead.closest('.rod');
-        const rods = Array.from(board.querySelectorAll('.rod'));
-        const rodIndex = rods.indexOf(rod);
-        const isActive = clickedBead.classList.contains('active');
-
-        let movedCount = 0;
-        let isBeamHit = true;
-
-        if (clickedBead.classList.contains('heaven-bead')) {
-            clickedBead.classList.toggle('active');
-            isBeamHit = !isActive;
-            movedCount = 1;
-        } else if (clickedBead.classList.contains('earth-bead')) {
-            const earthBeads = Array.from(rod.querySelectorAll('.earth-bead'));
-            const clickedIndex = earthBeads.indexOf(clickedBead);
-
-            if (isActive) {
-                isBeamHit = false;
-                for (let i = clickedIndex; i < earthBeads.length; i++) {
-                    if (earthBeads[i].classList.contains('active')) {
-                        movedCount++;
-                        earthBeads[i].classList.remove('active');
-                    }
-                }
-            } else {
-                isBeamHit = true;
-                for (let i = 0; i <= clickedIndex; i++) {
-                    if (!earthBeads[i].classList.contains('active')) {
-                        movedCount++;
-                        earthBeads[i].classList.add('active');
-                    }
-                }
-            }
-        }
-
-        if (movedCount === 0) movedCount = 1;
-        playBeadClickSound(movedCount, { rodIndex, isBeamHit });
-
-        // Calculate mini soroban value
-        let totalVal = 0;
-        rods.forEach((r, idx) => {
-            let rodVal = 0;
-            r.querySelectorAll('.bead.active').forEach(b => {
-                rodVal += parseInt(b.dataset.value, 10);
-            });
-            const power = rods.length - 1 - idx;
-            totalVal += rodVal * Math.pow(10, power);
-        });
-
-        if (onValueChange) {
-            onValueChange(totalVal, board);
-        }
     }
 
     function openTutorial(stepIdx = 0) {
@@ -932,11 +1145,33 @@ document.addEventListener('DOMContentLoaded', () => {
         tutorialFinishBtn.addEventListener('click', closeTutorial);
     }
 
+    // Learning History Event Listeners
+    if (historyBtn) historyBtn.addEventListener('click', openHistoryModal);
+    if (historyCloseBtn) historyCloseBtn.addEventListener('click', closeHistoryModal);
+    if (historyModalBackdrop) historyModalBackdrop.addEventListener('click', closeHistoryModal);
+    if (historyDoneBtn) historyDoneBtn.addEventListener('click', closeHistoryModal);
+    if (historyResetBtn) {
+        historyResetBtn.addEventListener('click', () => {
+            if (confirm('これまでの学習記録をすべて消去しますか？')) {
+                localStorage.removeItem(HISTORY_STORAGE_KEY);
+                renderHistoryModal();
+            }
+        });
+    }
+
+    // Keyboard Navigation Shortcuts
     window.addEventListener('keydown', (e) => {
-        if (tutorialModal && !tutorialModal.classList.contains('hidden')) {
-            if (e.key === 'Escape') {
-                closeTutorial();
-            } else if (e.key === 'ArrowRight') {
+        const isTutorialOpen = tutorialModal && !tutorialModal.classList.contains('hidden');
+        const isHistoryOpen = historyModal && !historyModal.classList.contains('hidden');
+
+        if (e.key === 'Escape') {
+            if (isTutorialOpen) closeTutorial();
+            if (isHistoryOpen) closeHistoryModal();
+            return;
+        }
+
+        if (isTutorialOpen) {
+            if (e.key === 'ArrowRight') {
                 if (currentTutorialStep < TUTORIAL_STEPS.length - 1) {
                     currentTutorialStep++;
                     renderTutorialStep();
@@ -947,6 +1182,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     renderTutorialStep();
                 }
             }
+            return;
+        }
+
+        if (isHistoryOpen) {
+            return;
+        }
+
+        // Global Game Shortcuts
+        if (e.code === 'Space') {
+            e.preventDefault();
+            if (!checkButton.disabled) {
+                checkAnswer();
+            } else if (!newQuestionButton.disabled) {
+                generateQuestion();
+            }
+        } else if (e.key === 'c' || e.key === 'C') {
+            clearSoroban(true);
+        } else if (e.key === 'g' || e.key === 'G') {
+            openTutorial(0);
+        } else if (e.key === 'h' || e.key === 'H') {
+            openHistoryModal();
         }
     });
 

@@ -147,6 +147,25 @@ body {
     transform: scale(0.95);
 }
 
+.history-btn {
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: #ffffff;
+    font-size: 0.85rem;
+    padding: 7px 14px;
+    box-shadow: 0 3px 10px rgba(2, 132, 199, 0.35);
+    white-space: nowrap;
+}
+
+.history-btn:hover {
+    background: linear-gradient(135deg, #0369a1 0%, #075985 100%);
+    box-shadow: 0 5px 14px rgba(2, 132, 199, 0.5);
+    transform: translateY(-2px);
+}
+
+.history-btn:active {
+    transform: scale(0.95);
+}
+
 .icon-btn {
     background: #f1f2f6;
     border: 2px solid #dfe4ea;
@@ -383,14 +402,21 @@ body {
     border: 1px solid #7a4212;
     clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
     cursor: pointer;
-    transition: transform 0.18s cubic-bezier(0.25, 0.8, 0.25, 1);
+    transition: transform 0.16s cubic-bezier(0.34, 1.35, 0.64, 1);
     z-index: 20;
     position: relative;
     flex-shrink: 0;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .bead.active {
     background: linear-gradient(to bottom, var(--bead-active-start), var(--bead-active-end));
+}
+
+.bead.dragging {
+    transition: none;
 }
 
 .heaven-bead {
@@ -414,6 +440,17 @@ body {
 /* Earth beads slide UP towards beam when active */
 .earth-bead.active {
     transform: translateY(-30px);
+}
+
+/* Staggered Gohasan (ご破算) sweep flash effect */
+.rod.gohasan-sweep .bead {
+    animation: gohasanBeadSnap 0.22s ease;
+}
+
+@keyframes gohasanBeadSnap {
+    0% { filter: brightness(1.3); }
+    50% { transform: scale(1.06); filter: brightness(1.2); }
+    100% { filter: brightness(1); }
 }
 
 /* Live Soroban Value Display */
@@ -914,6 +951,237 @@ body {
 }
 
 /* ==========================================================================
+   Learning History Modal Styles
+   ========================================================================== */
+.history-header {
+    background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+    border-bottom: 2px dashed #bae6fd;
+}
+
+.history-header .modal-title {
+    color: #0369a1;
+}
+
+.history-body {
+    gap: 16px;
+}
+
+.history-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    width: 100%;
+}
+
+.summary-card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    border: 2px solid #e2e8f0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    transition: transform 0.2s ease;
+}
+
+.summary-card:hover {
+    transform: translateY(-2px);
+}
+
+.summary-card.total-card {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+}
+
+.summary-card.accuracy-card {
+    background: #f0fdf4;
+    border-color: #86efac;
+}
+
+.summary-card.streak-card {
+    background: #fff7ed;
+    border-color: #fdba74;
+}
+
+.summary-card.speed-card {
+    background: #faf5ff;
+    border-color: #d8b4fe;
+}
+
+.summary-icon {
+    font-size: 1.5rem;
+    margin-bottom: 2px;
+}
+
+.summary-val {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #1e293b;
+    font-family: var(--font-pop);
+}
+
+.summary-card.accuracy-card .summary-val {
+    color: #16a34a;
+}
+
+.summary-card.streak-card .summary-val {
+    color: #ea580c;
+}
+
+.summary-card.speed-card .summary-val {
+    color: #9333ea;
+}
+
+.summary-label {
+    font-size: 0.78rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+/* History Sections */
+.history-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+}
+
+.history-section-title {
+    font-size: 0.95rem;
+    color: #334155;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.level-stats-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: #f8fafc;
+    padding: 12px;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+}
+
+.level-stat-row {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.level-stat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.82rem;
+}
+
+.level-stat-name {
+    font-weight: bold;
+    color: #475569;
+}
+
+.level-stat-nums {
+    color: #64748b;
+}
+
+.level-stat-nums strong {
+    color: #0284c7;
+}
+
+.level-progress-track {
+    width: 100%;
+    height: 10px;
+    background: #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.level-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #38bdf8 0%, #0284c7 100%);
+    border-radius: 6px;
+    transition: width 0.5s ease;
+}
+
+/* Recent Logs Container */
+.history-logs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 180px;
+    overflow-y: auto;
+    background: #f8fafc;
+    padding: 8px 10px;
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+}
+
+.history-log-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #ffffff;
+    padding: 6px 12px;
+    border-radius: 10px;
+    border: 1px solid #f1f5f9;
+    font-size: 0.85rem;
+}
+
+.log-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.log-badge {
+    font-size: 1rem;
+}
+
+.log-equation {
+    font-weight: bold;
+    color: #334155;
+}
+
+.log-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: #94a3b8;
+}
+
+.log-time-chip {
+    background: #f1f5f9;
+    color: #475569;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-weight: bold;
+}
+
+.empty-history-text {
+    text-align: center;
+    color: #94a3b8;
+    font-size: 0.85rem;
+    padding: 16px;
+}
+
+.btn-danger-subtle {
+    background: #fef2f2;
+    color: #ef4444;
+    border: 1px solid #fecaca;
+}
+
+.btn-danger-subtle:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+/* ==========================================================================
    Responsive Smartphone Design (Balanced & Roomy without Vertical Wrapping)
    ========================================================================== */
 @media (max-width: 600px) {
@@ -941,16 +1209,16 @@ body {
         font-size: 1.25rem;
     }
 
-    .guide-btn {
+    .guide-btn, .history-btn {
         font-size: 0.78rem;
         padding: 5px 10px;
     }
 
-    .guide-btn .btn-text {
+    .guide-btn .btn-text, .history-btn .btn-text {
         display: none; /* Show icon only on small screens */
     }
 
-    .guide-btn .btn-icon {
+    .guide-btn .btn-icon, .history-btn .btn-icon {
         font-size: 1.05rem;
     }
 
@@ -1090,7 +1358,7 @@ body {
         padding: 10px 22px;
     }
 
-    /* Tutorial Modal Mobile Rules */
+    /* Modal Mobile Rules */
     .modal-overlay {
         padding: 8px;
     }
@@ -1112,6 +1380,18 @@ body {
     .modal-body {
         padding: 10px 12px;
         gap: 10px;
+    }
+
+    .history-summary-grid {
+        gap: 6px;
+    }
+
+    .summary-card {
+        padding: 8px 10px;
+    }
+
+    .summary-val {
+        font-size: 1.25rem;
     }
 
     .step-heading {

@@ -24,6 +24,10 @@
                     <span class="btn-icon">📖</span>
                     <span class="btn-text">つかいかた</span>
                 </button>
+                <button id="history-btn" class="pill-btn history-btn" title="がくしゅうきろく" aria-label="がくしゅうきろく">
+                    <span class="btn-icon">📊</span>
+                    <span class="btn-text">きろく</span>
+                </button>
                 <button id="sound-toggle" class="icon-btn" title="おとのON/OFF" aria-label="おとの切り替え">
                     <span id="sound-icon">🔊</span>
                 </button>
@@ -130,6 +134,71 @@
                 <div class="footer-spacer"></div>
                 <button id="tutorial-next-btn" class="btn btn-next">つぎへ ▶</button>
                 <button id="tutorial-finish-btn" class="btn btn-check hidden">れんしゅうへ！ ➔</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Learning History Modal -->
+    <div id="history-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="history-modal-title">
+        <div class="modal-backdrop" id="history-modal-backdrop"></div>
+        <div class="modal-card history-modal-card">
+            <!-- Modal Header -->
+            <div class="modal-header history-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-header-icon">📊</span>
+                    <h2 id="history-modal-title" class="modal-title">がくしゅうきろく</h2>
+                </div>
+                <button id="history-close-btn" class="icon-btn close-btn" title="とじる" aria-label="きろくをとじる">✖</button>
+            </div>
+
+            <!-- Modal Body Content -->
+            <div class="modal-body history-body" id="history-body">
+                <!-- Summary Stats Grid -->
+                <div class="history-summary-grid">
+                    <div class="summary-card total-card">
+                        <div class="summary-icon">📝</div>
+                        <div class="summary-val" id="hist-total-count">0</div>
+                        <div class="summary-label">といたもんだい</div>
+                    </div>
+                    <div class="summary-card accuracy-card">
+                        <div class="summary-icon">🎯</div>
+                        <div class="summary-val" id="hist-accuracy-rate">0%</div>
+                        <div class="summary-label">せいかいりつ</div>
+                    </div>
+                    <div class="summary-card streak-card">
+                        <div class="summary-icon">🔥</div>
+                        <div class="summary-val" id="hist-max-streak">0</div>
+                        <div class="summary-label">さいこうれんぞく</div>
+                    </div>
+                    <div class="summary-card speed-card">
+                        <div class="summary-icon">⚡</div>
+                        <div class="summary-val" id="hist-avg-speed">-</div>
+                        <div class="summary-label">へいきん秒</div>
+                    </div>
+                </div>
+
+                <!-- Level Performance Breakdown -->
+                <div class="history-section">
+                    <h3 class="history-section-title">けた数べつのせいせき</h3>
+                    <div class="level-stats-list" id="level-stats-list">
+                        <!-- Injected via JS -->
+                    </div>
+                </div>
+
+                <!-- Recent Answers Log -->
+                <div class="history-section">
+                    <h3 class="history-section-title">さいきんのチャレンジ</h3>
+                    <div class="history-logs-container" id="history-logs-container">
+                        <!-- Injected via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="modal-footer">
+                <button id="history-reset-btn" class="btn btn-clear btn-danger-subtle">きろくを消去 🗑️</button>
+                <div class="footer-spacer"></div>
+                <button id="history-done-btn" class="btn btn-next">とじる</button>
             </div>
         </div>
     </div>
