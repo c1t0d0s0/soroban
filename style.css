@@ -482,8 +482,13 @@ body {
 }
 
 .btn:disabled {
-    opacity: 0.6;
+    opacity: 0.45;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.btn:disabled:active {
     transform: none;
 }
 
@@ -505,7 +510,7 @@ body {
     border: 2px solid #dfe4ea;
 }
 
-.btn-clear:hover {
+.btn-clear:hover:not(:disabled) {
     background: #e4e7eb;
 }
 
@@ -514,7 +519,7 @@ body {
     color: #ffffff;
 }
 
-.btn-next:hover {
+.btn-next:hover:not(:disabled) {
     box-shadow: 0 6px 16px rgba(46, 213, 115, 0.4);
     transform: translateY(-2px);
 }

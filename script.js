@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // App State
     let currentAnswer = 0;
-    let maxDigits = 5; // Default max digits: 5 digits (up to 99999)
+    let maxDigits = 2; // Default max digits: 2 digits (1〜2けた)
     let starCount = 0;
     let streakCount = 0;
     let autoNextTimeout = null;
@@ -28,8 +28,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let isSoundMuted = false;
     const NUM_RODS = 5;
 
-    // --- Web Audio API Synthesizer ---
+    // --- Web Audio API Wood Bead Synthesizer ---
     let audioCtx = null;
+    let noiseBuffer = null;
 
     function getAudioContext() {
         if (!audioCtx) {
@@ -41,29 +42,154 @@ document.addEventListener('DOMContentLoaded', () => {
         if (audioCtx && audioCtx.state === 'suspended') {
             audioCtx.resume();
         }
+        // Lazily initialize reusable noise buffer for high-frequency wood impact transients
+        if (audioCtx && !noiseBuffer) {
+            const sampleRate = audioCtx.sampleRate || 44100;
+            const length = Math.floor(sampleRate * 0.05); // 50ms noise buffer
+            noiseBuffer = audioCtx.createBuffer(1, length, sampleRate);
+            const data = noiseBuffer.getChannelData(0);
+            for (let i = 0; i < length; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+        }
         return audioCtx;
     }
 
-    function playBeadClickSound() {
+    /**
+     * Synthesizes a single authentic wooden bead impact sound using physical modal resonance.
+     */
+    function playSingleWoodClick(ctx, startTime, options = {}) {
+        const pitchMult = (options.pitchMult || 1.0) * (0.97 + Math.random() * 0.06);
+        const volume = options.volume || 1.0;
+        const isBeamHit = options.isBeamHit !== undefined ? options.isBeamHit : true;
+
+        // 1. High-frequency Snap / Attack Noise Transient (hard wood contact snap)
+        if (noiseBuffer) {
+            const noiseSource = ctx.createBufferSource();
+            noiseSource.buffer = noiseBuffer;
+
+            const noiseFilter = ctx.createBiquadFilter();
+            noiseFilter.type = 'bandpass';
+            noiseFilter.frequency.setValueAtTime((isBeamHit ? 4200 : 3600) * pitchMult, startTime);
+            noiseFilter.Q.setValueAtTime(3.2, startTime);
+
+            const noiseGain = ctx.createGain();
+            noiseGain.gain.setValueAtTime(0.42 * volume, startTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.012);
+
+            noiseSource.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(ctx.destination);
+
+            noiseSource.start(startTime);
+            noiseSource.stop(startTime + 0.015);
+        }
+
+        // 2. High Wood Mode (Hard surface collision click)
+        const oscHigh = ctx.createOscillator();
+        const gainHigh = ctx.createGain();
+        const fHighBase = (isBeamHit ? 2700 : 2300) * pitchMult;
+
+        oscHigh.type = 'sine';
+        oscHigh.frequency.setValueAtTime(fHighBase * 1.45, startTime);
+        oscHigh.frequency.exponentialRampToValueAtTime(fHighBase, startTime + 0.006);
+
+        gainHigh.gain.setValueAtTime(0.40 * volume, startTime);
+        gainHigh.gain.exponentialRampToValueAtTime(0.001, startTime + 0.020);
+
+        oscHigh.connect(gainHigh);
+        gainHigh.connect(ctx.destination);
+        oscHigh.start(startTime);
+        oscHigh.stop(startTime + 0.024);
+
+        // 3. Mid Wood Body Resonance ("tok" / "kachi")
+        const oscMid = ctx.createOscillator();
+        const gainMid = ctx.createGain();
+        const fMidBase = (isBeamHit ? 1350 : 1150) * pitchMult;
+
+        oscMid.type = 'sine';
+        oscMid.frequency.setValueAtTime(fMidBase * 1.30, startTime);
+        oscMid.frequency.exponentialRampToValueAtTime(fMidBase, startTime + 0.009);
+
+        gainMid.gain.setValueAtTime(0.35 * volume, startTime);
+        gainMid.gain.exponentialRampToValueAtTime(0.001, startTime + 0.028);
+
+        oscMid.connect(gainMid);
+        gainMid.connect(ctx.destination);
+        oscMid.start(startTime);
+        oscMid.stop(startTime + 0.032);
+
+        // 4. Low Wood Thud / Frame Box Resonance ("pok")
+        const oscLow = ctx.createOscillator();
+        const gainLow = ctx.createGain();
+        const fLowBase = (isBeamHit ? 580 : 490) * pitchMult;
+
+        oscLow.type = 'triangle';
+        oscLow.frequency.setValueAtTime(fLowBase * 1.25, startTime);
+        oscLow.frequency.exponentialRampToValueAtTime(fLowBase, startTime + 0.012);
+
+        gainLow.gain.setValueAtTime(0.22 * volume, startTime);
+        gainLow.gain.exponentialRampToValueAtTime(0.001, startTime + 0.036);
+
+        oscLow.connect(gainLow);
+        gainLow.connect(ctx.destination);
+        oscLow.start(startTime);
+        oscLow.stop(startTime + 0.040);
+    }
+
+    /**
+     * Plays the bead click sound, with micro-staggering when multiple beads move together.
+     */
+    function playBeadClickSound(beadCount = 1, options = {}) {
         if (isSoundMuted) return;
         try {
             const ctx = getAudioContext();
             if (!ctx) return;
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
 
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(400 + Math.random() * 200, ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(120, ctx.currentTime + 0.04);
+            const now = ctx.currentTime;
+            const count = Math.max(1, Math.min(4, beadCount));
 
-            gain.gain.setValueAtTime(0.3, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.04);
+            for (let i = 0; i < count; i++) {
+                // Micro-staggering for multi-bead impacts (8-14ms apart)
+                const delay = i * (0.009 + Math.random() * 0.004);
+                const isMainImpact = (i === count - 1) || (count === 1);
+                const volume = isMainImpact ? 1.0 : 0.65;
+                const rodPitchShift = (options.rodIndex !== undefined) ? (1.0 + (options.rodIndex - 2) * 0.025) : 1.0;
+                const beadPitchShift = 1.0 + (i * 0.035);
 
-            osc.connect(gain);
-            gain.connect(ctx.destination);
+                playSingleWoodClick(ctx, now + delay, {
+                    pitchMult: rodPitchShift * beadPitchShift * (options.pitchMult || 1.0),
+                    volume: volume * (options.volume || 1.0),
+                    isBeamHit: options.isBeamHit !== undefined ? options.isBeamHit : true
+                });
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
 
-            osc.start();
-            osc.stop(ctx.currentTime + 0.04);
+    /**
+     * Plays the traditional "ご破算" (gohasan) wooden sweep sound when clearing the board.
+     */
+    function playClearSweepSound(count = 5) {
+        if (isSoundMuted) return;
+        try {
+            const ctx = getAudioContext();
+            if (!ctx) return;
+
+            const now = ctx.currentTime;
+            const sweepCount = Math.min(8, Math.max(3, count));
+            for (let i = 0; i < sweepCount; i++) {
+                const delay = i * (0.018 + Math.random() * 0.005);
+                const pitchMult = 0.88 + (i * 0.05) + (Math.random() - 0.5) * 0.06;
+                const volume = 0.5 + Math.random() * 0.2;
+
+                playSingleWoodClick(ctx, now + delay, {
+                    pitchMult: pitchMult,
+                    volume: volume,
+                    isBeamHit: false
+                });
+            }
         } catch (e) {
             console.error(e);
         }
@@ -168,30 +294,47 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleBeadClick(event) {
         getAudioContext(); // Ensure AudioContext is initialized on click
-        playBeadClickSound();
 
         const clickedBead = event.currentTarget;
         const rod = clickedBead.closest('.rod');
+        const rods = Array.from(sorobanElement.querySelectorAll('.rod'));
+        const rodIndex = rods.indexOf(rod);
         const isActive = clickedBead.classList.contains('active');
+
+        let movedCount = 0;
+        let isBeamHit = true;
 
         if (clickedBead.classList.contains('heaven-bead')) {
             clickedBead.classList.toggle('active');
+            isBeamHit = !isActive; // If previously inactive, moving toward beam
+            movedCount = 1;
         } else if (clickedBead.classList.contains('earth-bead')) {
             const earthBeads = Array.from(rod.querySelectorAll('.earth-bead'));
             const clickedIndex = earthBeads.indexOf(clickedBead);
 
             if (isActive) {
-                // Deactivate this bead and all beads below it
+                // Deactivate this bead and all beads below it (slide away from beam)
+                isBeamHit = false;
                 for (let i = clickedIndex; i < earthBeads.length; i++) {
-                    earthBeads[i].classList.remove('active');
+                    if (earthBeads[i].classList.contains('active')) {
+                        movedCount++;
+                        earthBeads[i].classList.remove('active');
+                    }
                 }
             } else {
-                // Activate this bead and all beads above it
+                // Activate this bead and all beads above it (slide toward beam)
+                isBeamHit = true;
                 for (let i = 0; i <= clickedIndex; i++) {
-                    earthBeads[i].classList.add('active');
+                    if (!earthBeads[i].classList.contains('active')) {
+                        movedCount++;
+                        earthBeads[i].classList.add('active');
+                    }
                 }
             }
         }
+
+        if (movedCount === 0) movedCount = 1;
+        playBeadClickSound(movedCount, { rodIndex, isBeamHit });
         updateSorobanValueDisplay();
     }
 
@@ -217,10 +360,16 @@ document.addEventListener('DOMContentLoaded', () => {
         currentSorobanValEl.textContent = val.toLocaleString('ja-JP');
     }
 
-    function clearSoroban() {
+    function clearSoroban(playSound = false) {
         const beads = sorobanElement.querySelectorAll('.bead.active');
+        const activeCount = beads.length;
         beads.forEach(bead => bead.classList.remove('active'));
         updateSorobanValueDisplay();
+
+        if (playSound && activeCount > 0) {
+            getAudioContext();
+            playClearSweepSound(activeCount);
+        }
     }
 
     // --- Question Generation Engine ---
@@ -257,9 +406,10 @@ document.addEventListener('DOMContentLoaded', () => {
             questionElement.textContent = `${num1.toLocaleString('ja-JP')} - ${num2.toLocaleString('ja-JP')} = ?`;
         }
 
-        // Reset Result View
+        // Reset Result View & Button States
         resultArea.classList.add('hidden');
         checkButton.disabled = false;
+        newQuestionButton.disabled = true;
         clearSoroban();
     }
 
@@ -341,6 +491,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         checkButton.disabled = true;
+        newQuestionButton.disabled = false;
         startAutoNextTimer();
     }
 
@@ -401,8 +552,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Event Listeners
     checkButton.addEventListener('click', checkAnswer);
-    clearButton.addEventListener('click', clearSoroban);
+    clearButton.addEventListener('click', () => {
+        clearSoroban(true);
+    });
     newQuestionButton.addEventListener('click', () => {
+        if (newQuestionButton.disabled) return;
         getAudioContext();
         generateQuestion();
     });

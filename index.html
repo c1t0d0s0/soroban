@@ -30,9 +30,9 @@
         <div class="control-panel">
             <div class="level-selector">
                 <span class="label">けた数:</span>
-                <button class="level-btn" data-digits="2">1〜2けた</button>
+                <button class="level-btn active" data-digits="2">1〜2けた</button>
                 <button class="level-btn" data-digits="3">3〜4けた</button>
-                <button class="level-btn active" data-digits="5">5けたまで</button>
+                <button class="level-btn" data-digits="5">5けたまで</button>
             </div>
             <div class="stats-bar">
                 <div class="stat-item stars">
@@ -52,7 +52,7 @@
             <!-- Question Card -->
             <div class="question-card">
                 <div class="question-badge">もんだい</div>
-                <div id="question" class="question-text">12,345 + 67,890 = ?</div>
+                <div id="question" class="question-text">25 + 14 = ?</div>
             </div>
             
             <!-- Soroban Wrapper -->
@@ -91,7 +91,7 @@
             <div class="button-area">
                 <button id="check-button" class="btn btn-check">できた！</button>
                 <button id="clear-button" class="btn btn-clear">リセット 🔄</button>
-                <button id="new-question-button" class="btn btn-next">つぎへ ➔</button>
+                <button id="new-question-button" class="btn btn-next" disabled>つぎへ ➔</button>
             </div>
         </main>
     </div>
