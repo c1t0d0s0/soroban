@@ -18,6 +18,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const levelBtns = document.querySelectorAll('.level-btn');
     const canvas = document.getElementById('confetti-canvas');
 
+    // Tutorial DOM Elements
+    const guideBtn = document.getElementById('guide-btn');
+    const tutorialModal = document.getElementById('tutorial-modal');
+    const modalBackdrop = document.getElementById('modal-backdrop');
+    const tutorialCloseBtn = document.getElementById('tutorial-close-btn');
+    const tutorialStepDots = document.getElementById('tutorial-step-dots');
+    const tutorialStepCounter = document.getElementById('tutorial-step-counter');
+    const tutorialBody = document.getElementById('tutorial-body');
+    const tutorialPrevBtn = document.getElementById('tutorial-prev-btn');
+    const tutorialNextBtn = document.getElementById('tutorial-next-btn');
+    const tutorialFinishBtn = document.getElementById('tutorial-finish-btn');
+
     // App State
     let currentAnswer = 0;
     let maxDigits = 2; // Default max digits: 2 digits (1〜2けた)
@@ -550,6 +562,341 @@ document.addEventListener('DOMContentLoaded', () => {
         render();
     }
 
+    // --- Tutorial Guide System ---
+    let currentTutorialStep = 0;
+    const stepCompleted = [false, false, false, false];
+
+    const TUTORIAL_STEPS = [
+        {
+            title: "そろばんのなまえ",
+            badge: "ステップ 1",
+            heading: "そろばんの各部の名前をおぼえよう！",
+            desc: "そろばんは、木でできた枠の中にたくさんの「玉」が並んでいます。上の玉と下の玉には、それぞれ違う役目があります。",
+            anatomy: [
+                { badge: "梁（はり）", class: "beam-badge", text: "上下の玉を分けている真ん中の木枠です。" },
+                { badge: "五だま（上）", class: "heaven-badge", text: "1個で「5」をあらわす特別な玉です。" },
+                { badge: "一だま（下）", class: "earth-badge", text: "1個で「1」をあらわす玉です（4個あります）。" },
+                { badge: "定位点（白い点）", class: "point-badge", text: "位の目印です。白い点がある桁が「一の位」になります。" }
+            ],
+            rods: 5,
+            placeValues: ['万', '千', '百', '十', '一'],
+            mission: {
+                title: "やってみよう！",
+                instruction: "玉をクリックして、リアルな木の音を鳴らしてみよう！",
+                target: "any",
+                successMessage: "いい音！そろばんの音が鳴ったね！🎉"
+            }
+        },
+        {
+            title: "1〜4のかず",
+            badge: "ステップ 2",
+            heading: "親指で上げて「入れる」、人差し指で下げて「払う」",
+            desc: "下の「一だま」は1個で <strong class='highlight-text'>1</strong> をあらわします。<br>梁（真ん中の棒）に向かって<strong>親指で押し上げると「入る（+）」</strong>、<strong>人差し指で引き下げると「払う（-）」</strong>だよ！",
+            rods: 5,
+            placeValues: ['万', '千', '百', '十', '一'],
+            mission: {
+                title: "ミッション",
+                instruction: "一の位（一番右の桁）に「3」をおいてみよう！（一だまを3個上げる）",
+                target: 3,
+                successMessage: "せいかい！ぴったりの「3」ができたね！🎉"
+            }
+        },
+        {
+            title: "5〜9のかず",
+            badge: "ステップ 3",
+            heading: "上の「五だま」は1個で 5！",
+            desc: "上の「五だま」は1個で <strong class='highlight-text'>5</strong> をあらわします。<br><strong>人差し指で下ろすと「入る（+5）」</strong>！<br>五だま（5）と一だま（2個）を合わせると <strong>7</strong> になるよ！",
+            rods: 5,
+            placeValues: ['万', '千', '百', '十', '一'],
+            mission: {
+                title: "ミッション",
+                instruction: "一の位に「7」をおいてみよう！（五だま1個 ＋ 一だま2個）",
+                target: 7,
+                successMessage: "すばらしい！「7」が正しくできたよ！🎉"
+            }
+        },
+        {
+            title: "くりあがりのひみつ",
+            badge: "ステップ 4",
+            heading: "10になったら左の桁（十の位）へ！",
+            desc: "そろばんでは、1つの桁には「9」までしか入りません。<br>10になったら、一の位を全部払って（0にして）、左隣の <strong class='highlight-text'>十の位に一だまを1個</strong> 入れるよ！",
+            rods: 5,
+            placeValues: ['万', '千', '百', '十', '一'],
+            mission: {
+                title: "最後のミッション",
+                instruction: "「10」をおいてみよう！（十の位に1個、一の位は0）",
+                target: 10,
+                successMessage: "かんぺき！これでそろばんの基本はマスターだよ！🎉"
+            }
+        }
+    ];
+
+    function initTutorialStepDots() {
+        if (!tutorialStepDots) return;
+        tutorialStepDots.innerHTML = '';
+        TUTORIAL_STEPS.forEach((step, idx) => {
+            const dot = document.createElement('button');
+            dot.className = 'step-dot';
+            dot.textContent = idx + 1;
+            dot.title = step.title;
+            dot.addEventListener('click', () => {
+                currentTutorialStep = idx;
+                renderTutorialStep();
+            });
+            tutorialStepDots.appendChild(dot);
+        });
+    }
+
+    function renderTutorialStep() {
+        const step = TUTORIAL_STEPS[currentTutorialStep];
+        if (!step || !tutorialBody) return;
+
+        // Update step counter & dots
+        if (tutorialStepCounter) {
+            tutorialStepCounter.textContent = `${currentTutorialStep + 1} / ${TUTORIAL_STEPS.length}`;
+        }
+        const dots = tutorialStepDots ? tutorialStepDots.querySelectorAll('.step-dot') : [];
+        dots.forEach((dot, idx) => {
+            dot.classList.remove('active', 'completed');
+            if (idx === currentTutorialStep) {
+                dot.classList.add('active');
+            } else if (stepCompleted[idx]) {
+                dot.classList.add('completed');
+            }
+        });
+
+        // Update footer buttons
+        if (tutorialPrevBtn) {
+            tutorialPrevBtn.disabled = (currentTutorialStep === 0);
+        }
+        if (currentTutorialStep === TUTORIAL_STEPS.length - 1) {
+            if (tutorialNextBtn) tutorialNextBtn.classList.add('hidden');
+            if (tutorialFinishBtn) tutorialFinishBtn.classList.remove('hidden');
+        } else {
+            if (tutorialNextBtn) tutorialNextBtn.classList.remove('hidden');
+            if (tutorialFinishBtn) tutorialFinishBtn.classList.add('hidden');
+        }
+
+        // Render Body Content
+        tutorialBody.innerHTML = '';
+
+        // 1. Header
+        const header = document.createElement('div');
+        header.className = 'tutorial-step-header';
+        header.innerHTML = `
+            <span class="step-badge">${step.badge}</span>
+            <h3 class="step-heading">${step.heading}</h3>
+        `;
+        tutorialBody.appendChild(header);
+
+        // 2. Description
+        const desc = document.createElement('div');
+        desc.className = 'tutorial-desc';
+        desc.innerHTML = step.desc;
+        tutorialBody.appendChild(desc);
+
+        // 3. Anatomy Diagram (Step 1)
+        if (step.anatomy) {
+            const diagram = document.createElement('div');
+            diagram.className = 'anatomy-diagram';
+            step.anatomy.forEach(item => {
+                const row = document.createElement('div');
+                row.className = 'anatomy-item';
+                row.innerHTML = `
+                    <span class="anatomy-badge ${item.class}">${item.badge}</span>
+                    <span class="anatomy-text">${item.text}</span>
+                `;
+                diagram.appendChild(row);
+            });
+            tutorialBody.appendChild(diagram);
+        }
+
+        // 4. Interactive Soroban Container
+        const sorobanContainer = document.createElement('div');
+        sorobanContainer.className = 'tutorial-soroban-container';
+
+        const sorobanHeader = document.createElement('div');
+        sorobanHeader.className = 'tutorial-soroban-header';
+        sorobanHeader.innerHTML = `
+            <span class="tutorial-soroban-label">ためしてみよう 🧮</span>
+            <div class="soroban-value-display">そろばんのかず: <span id="tutorial-current-val">0</span></div>
+        `;
+        sorobanContainer.appendChild(sorobanHeader);
+
+        const sorobanWrapper = document.createElement('div');
+        sorobanWrapper.className = 'soroban-wrapper';
+        sorobanContainer.appendChild(sorobanWrapper);
+        tutorialBody.appendChild(sorobanContainer);
+
+        // 5. Mission Box
+        const missionBox = document.createElement('div');
+        missionBox.className = 'tutorial-mission-box';
+        missionBox.id = 'tutorial-mission-box';
+        missionBox.innerHTML = `
+            <div class="mission-title">🎯 ${step.mission.title}</div>
+            <div class="mission-instruction">${step.mission.instruction}</div>
+            <div class="mission-status" id="tutorial-mission-status"></div>
+        `;
+        tutorialBody.appendChild(missionBox);
+
+        // Create mini soroban
+        createTutorialMiniSoroban(sorobanWrapper, step.rods, step.placeValues, (currentVal) => {
+            const valEl = document.getElementById('tutorial-current-val');
+            if (valEl) valEl.textContent = currentVal.toLocaleString('ja-JP');
+
+            checkTutorialMission(currentVal, step, missionBox);
+        });
+    }
+
+    function checkTutorialMission(currentVal, step, missionBox) {
+        const statusEl = document.getElementById('tutorial-mission-status');
+        let isDone = false;
+
+        if (step.mission.target === 'any') {
+            isDone = true;
+        } else if (currentVal === step.mission.target) {
+            isDone = true;
+        }
+
+        if (isDone) {
+            missionBox.classList.add('completed');
+            if (statusEl) statusEl.textContent = step.mission.successMessage;
+
+            if (!stepCompleted[currentTutorialStep]) {
+                stepCompleted[currentTutorialStep] = true;
+                playCorrectSound();
+                launchConfetti();
+                const dots = tutorialStepDots ? tutorialStepDots.querySelectorAll('.step-dot') : [];
+                if (dots[currentTutorialStep]) {
+                    dots[currentTutorialStep].classList.add('completed');
+                }
+            }
+        } else {
+            missionBox.classList.remove('completed');
+            if (statusEl) statusEl.textContent = '';
+        }
+    }
+
+    function createTutorialMiniSoroban(container, numRods, placeValues, onValueChange) {
+        container.innerHTML = '';
+
+        const pvContainer = document.createElement('div');
+        pvContainer.className = 'place-values';
+        placeValues.forEach(pv => {
+            const item = document.createElement('div');
+            item.className = 'pv-item';
+            item.textContent = pv;
+            pvContainer.appendChild(item);
+        });
+        container.appendChild(pvContainer);
+
+        const board = document.createElement('div');
+        board.className = 'soroban-board';
+
+        for (let i = 0; i < numRods; i++) {
+            const rod = document.createElement('div');
+            rod.className = 'rod';
+            // Traditional positioning points on rod 2 (thousands) and rod 4 (ones)
+            if (i === 2 || i === 4) {
+                rod.classList.add('positioning-point');
+            }
+
+            const heavenBead = document.createElement('div');
+            heavenBead.className = 'bead heaven-bead';
+            heavenBead.dataset.value = 5;
+            heavenBead.addEventListener('click', (e) => handleTutorialBeadClick(e, board, onValueChange));
+            rod.appendChild(heavenBead);
+
+            const earthContainer = document.createElement('div');
+            earthContainer.className = 'earth-beads';
+            for (let j = 0; j < 4; j++) {
+                const earthBead = document.createElement('div');
+                earthBead.className = 'bead earth-bead';
+                earthBead.dataset.value = 1;
+                earthBead.addEventListener('click', (e) => handleTutorialBeadClick(e, board, onValueChange));
+                earthContainer.appendChild(earthBead);
+            }
+            rod.appendChild(earthContainer);
+            board.appendChild(rod);
+        }
+
+        container.appendChild(board);
+    }
+
+    function handleTutorialBeadClick(event, board, onValueChange) {
+        getAudioContext();
+
+        const clickedBead = event.currentTarget;
+        const rod = clickedBead.closest('.rod');
+        const rods = Array.from(board.querySelectorAll('.rod'));
+        const rodIndex = rods.indexOf(rod);
+        const isActive = clickedBead.classList.contains('active');
+
+        let movedCount = 0;
+        let isBeamHit = true;
+
+        if (clickedBead.classList.contains('heaven-bead')) {
+            clickedBead.classList.toggle('active');
+            isBeamHit = !isActive;
+            movedCount = 1;
+        } else if (clickedBead.classList.contains('earth-bead')) {
+            const earthBeads = Array.from(rod.querySelectorAll('.earth-bead'));
+            const clickedIndex = earthBeads.indexOf(clickedBead);
+
+            if (isActive) {
+                isBeamHit = false;
+                for (let i = clickedIndex; i < earthBeads.length; i++) {
+                    if (earthBeads[i].classList.contains('active')) {
+                        movedCount++;
+                        earthBeads[i].classList.remove('active');
+                    }
+                }
+            } else {
+                isBeamHit = true;
+                for (let i = 0; i <= clickedIndex; i++) {
+                    if (!earthBeads[i].classList.contains('active')) {
+                        movedCount++;
+                        earthBeads[i].classList.add('active');
+                    }
+                }
+            }
+        }
+
+        if (movedCount === 0) movedCount = 1;
+        playBeadClickSound(movedCount, { rodIndex, isBeamHit });
+
+        // Calculate mini soroban value
+        let totalVal = 0;
+        rods.forEach((r, idx) => {
+            let rodVal = 0;
+            r.querySelectorAll('.bead.active').forEach(b => {
+                rodVal += parseInt(b.dataset.value, 10);
+            });
+            const power = rods.length - 1 - idx;
+            totalVal += rodVal * Math.pow(10, power);
+        });
+
+        if (onValueChange) {
+            onValueChange(totalVal, board);
+        }
+    }
+
+    function openTutorial(stepIdx = 0) {
+        getAudioContext();
+        currentTutorialStep = typeof stepIdx === 'number' ? stepIdx : 0;
+        initTutorialStepDots();
+        renderTutorialStep();
+        if (tutorialModal) {
+            tutorialModal.classList.remove('hidden');
+        }
+    }
+
+    function closeTutorial() {
+        if (tutorialModal) {
+            tutorialModal.classList.add('hidden');
+        }
+    }
+
     // Event Listeners
     checkButton.addEventListener('click', checkAnswer);
     clearButton.addEventListener('click', () => {
@@ -559,6 +906,48 @@ document.addEventListener('DOMContentLoaded', () => {
         if (newQuestionButton.disabled) return;
         getAudioContext();
         generateQuestion();
+    });
+
+    // Tutorial Event Listeners
+    if (guideBtn) guideBtn.addEventListener('click', () => openTutorial(0));
+    if (tutorialCloseBtn) tutorialCloseBtn.addEventListener('click', closeTutorial);
+    if (modalBackdrop) modalBackdrop.addEventListener('click', closeTutorial);
+    if (tutorialPrevBtn) {
+        tutorialPrevBtn.addEventListener('click', () => {
+            if (currentTutorialStep > 0) {
+                currentTutorialStep--;
+                renderTutorialStep();
+            }
+        });
+    }
+    if (tutorialNextBtn) {
+        tutorialNextBtn.addEventListener('click', () => {
+            if (currentTutorialStep < TUTORIAL_STEPS.length - 1) {
+                currentTutorialStep++;
+                renderTutorialStep();
+            }
+        });
+    }
+    if (tutorialFinishBtn) {
+        tutorialFinishBtn.addEventListener('click', closeTutorial);
+    }
+
+    window.addEventListener('keydown', (e) => {
+        if (tutorialModal && !tutorialModal.classList.contains('hidden')) {
+            if (e.key === 'Escape') {
+                closeTutorial();
+            } else if (e.key === 'ArrowRight') {
+                if (currentTutorialStep < TUTORIAL_STEPS.length - 1) {
+                    currentTutorialStep++;
+                    renderTutorialStep();
+                }
+            } else if (e.key === 'ArrowLeft') {
+                if (currentTutorialStep > 0) {
+                    currentTutorialStep--;
+                    renderTutorialStep();
+                }
+            }
+        }
     });
 
     // Handle Window Resize

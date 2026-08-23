@@ -110,6 +110,43 @@ body {
     text-shadow: 1px 1px 0px #ffffff;
 }
 
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.pill-btn {
+    font-family: var(--font-pop);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border-radius: 24px;
+    transition: all 0.2s ease;
+}
+
+.guide-btn {
+    background: linear-gradient(135deg, #a855f7 0%, #8b5cf6 100%);
+    color: #ffffff;
+    font-size: 0.85rem;
+    padding: 7px 14px;
+    box-shadow: 0 3px 10px rgba(168, 85, 247, 0.35);
+    white-space: nowrap;
+}
+
+.guide-btn:hover {
+    background: linear-gradient(135deg, #9333ea 0%, #7c3aed 100%);
+    box-shadow: 0 5px 14px rgba(168, 85, 247, 0.5);
+    transform: translateY(-2px);
+}
+
+.guide-btn:active {
+    transform: scale(0.95);
+}
+
 .icon-btn {
     background: #f1f2f6;
     border: 2px solid #dfe4ea;
@@ -122,6 +159,7 @@ body {
     justify-content: center;
     align-items: center;
     transition: all 0.2s ease;
+    flex-shrink: 0;
 }
 
 .icon-btn:hover {
@@ -409,8 +447,13 @@ body {
     border: 2px solid #e2e8f0;
 }
 
+/* Utility Classes */
+.hidden {
+    display: none !important;
+}
+
 .result-area.hidden {
-    display: none;
+    display: none !important;
 }
 
 .result-area.correct-style {
@@ -525,6 +568,352 @@ body {
 }
 
 /* ==========================================================================
+   Tutorial Guide Modal Styles
+   ========================================================================== */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 14px;
+    z-index: 10000;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+
+.modal-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.modal-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(15, 23, 42, 0.65);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+}
+
+.modal-card {
+    position: relative;
+    background: #ffffff;
+    border-radius: 24px;
+    width: 100%;
+    max-width: 580px;
+    max-height: 90vh;
+    max-height: 90dvh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 45px rgba(0, 0, 0, 0.35);
+    border: 4px solid #ffffff;
+    overflow: hidden;
+    animation: modalPop 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.2);
+}
+
+@keyframes modalPop {
+    0% { transform: scale(0.92); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 18px;
+    background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+    border-bottom: 2px dashed #ddd6fe;
+}
+
+.modal-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.modal-header-icon {
+    font-size: 1.4rem;
+}
+
+.modal-title {
+    font-size: 1.2rem;
+    color: #4c1d95;
+    letter-spacing: 0.5px;
+}
+
+.close-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
+    color: #6b7280;
+    background: #ffffff;
+    border: 2px solid #e5e7eb;
+}
+
+.close-btn:hover {
+    background: #fee2e2;
+    border-color: #fca5a5;
+    color: #ef4444;
+}
+
+/* Tutorial Progress Indicator */
+.tutorial-progress {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 18px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.step-dots {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.step-dot {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #e2e8f0;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.step-dot:hover {
+    border-color: #c4b5fd;
+    color: #7c3aed;
+}
+
+.step-dot.active {
+    background: #8b5cf6;
+    color: #ffffff;
+    box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
+    transform: scale(1.1);
+}
+
+.step-dot.completed {
+    background: #10b981;
+    color: #ffffff;
+}
+
+.step-counter {
+    font-size: 0.85rem;
+    color: #8b5cf6;
+    font-weight: bold;
+}
+
+/* Modal Body */
+.modal-body {
+    padding: 16px 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+}
+
+.tutorial-step-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.step-badge {
+    background: #f3e8ff;
+    color: #7e22ce;
+    border: 2px solid #d8b4fe;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+.step-heading {
+    font-size: 1.15rem;
+    color: #1e293b;
+}
+
+.tutorial-desc {
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: #475569;
+    background: #f8fafc;
+    padding: 10px 14px;
+    border-radius: 14px;
+    border-left: 4px solid #8b5cf6;
+}
+
+.tutorial-desc strong {
+    color: #7c3aed;
+}
+
+.tutorial-desc .highlight-text {
+    background: #fef08a;
+    padding: 1px 4px;
+    border-radius: 4px;
+    color: #854d0e;
+    font-weight: bold;
+}
+
+/* Parts Anatomy Diagram / Callouts */
+.anatomy-diagram {
+    background: #fffbeb;
+    border: 2px dashed #fcd34d;
+    border-radius: 16px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.anatomy-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.anatomy-badge {
+    background: #d97706;
+    color: #ffffff;
+    padding: 2px 8px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.anatomy-badge.beam-badge {
+    background: #78350f;
+}
+
+.anatomy-badge.heaven-badge {
+    background: #ea580c;
+}
+
+.anatomy-badge.earth-badge {
+    background: #0284c7;
+}
+
+.anatomy-badge.point-badge {
+    background: #059669;
+}
+
+.anatomy-text {
+    font-size: 0.82rem;
+    color: #78350f;
+    line-height: 1.4;
+}
+
+/* Interactive Soroban inside Tutorial */
+.tutorial-soroban-container {
+    background: #faf5ff;
+    border: 2px solid #e9d5ff;
+    border-radius: 18px;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.tutorial-soroban-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    max-width: 480px;
+    padding: 0 4px;
+}
+
+.tutorial-soroban-label {
+    font-size: 0.88rem;
+    color: #6b21a8;
+    font-weight: bold;
+}
+
+.tutorial-soroban-container .soroban-wrapper {
+    width: 100%;
+    max-width: 480px;
+}
+
+/* Mission Box & Feedback */
+.tutorial-mission-box {
+    background: #f0fdf4;
+    border: 2px solid #86efac;
+    border-radius: 14px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.tutorial-mission-box.completed {
+    background: #dcfce7;
+    border-color: #22c55e;
+    animation: pulseSuccess 0.4s ease;
+}
+
+.mission-title {
+    font-size: 0.78rem;
+    color: #15803d;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+.mission-instruction {
+    font-size: 0.92rem;
+    color: #166534;
+    font-weight: bold;
+}
+
+.mission-status {
+    font-size: 0.85rem;
+    color: #16a34a;
+    font-weight: bold;
+}
+
+/* Modal Footer */
+.modal-footer {
+    padding: 12px 18px;
+    background: #ffffff;
+    border-top: 2px solid #f1f2f6;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.footer-spacer {
+    flex: 1;
+}
+
+.modal-footer .btn {
+    padding: 8px 18px;
+    font-size: 0.92rem;
+}
+
+/* ==========================================================================
    Responsive Smartphone Design (Balanced & Roomy without Vertical Wrapping)
    ========================================================================== */
 @media (max-width: 600px) {
@@ -550,6 +939,19 @@ body {
 
     .app-title {
         font-size: 1.25rem;
+    }
+
+    .guide-btn {
+        font-size: 0.78rem;
+        padding: 5px 10px;
+    }
+
+    .guide-btn .btn-text {
+        display: none; /* Show icon only on small screens */
+    }
+
+    .guide-btn .btn-icon {
+        font-size: 1.05rem;
     }
 
     .icon-btn {
@@ -686,5 +1088,60 @@ body {
     .btn-check {
         font-size: 1rem;
         padding: 10px 22px;
+    }
+
+    /* Tutorial Modal Mobile Rules */
+    .modal-overlay {
+        padding: 8px;
+    }
+
+    .modal-card {
+        max-height: 96vh;
+        max-height: 96dvh;
+        border-radius: 18px;
+    }
+
+    .modal-header {
+        padding: 10px 14px;
+    }
+
+    .modal-title {
+        font-size: 1.1rem;
+    }
+
+    .modal-body {
+        padding: 10px 12px;
+        gap: 10px;
+    }
+
+    .step-heading {
+        font-size: 1rem;
+    }
+
+    .tutorial-desc {
+        font-size: 0.84rem;
+        padding: 8px 10px;
+    }
+
+    .anatomy-diagram {
+        padding: 8px 10px;
+        gap: 6px;
+    }
+
+    .anatomy-text {
+        font-size: 0.78rem;
+    }
+
+    .tutorial-soroban-container {
+        padding: 8px 4px;
+    }
+
+    .modal-footer {
+        padding: 8px 12px;
+    }
+
+    .modal-footer .btn {
+        padding: 6px 14px;
+        font-size: 0.85rem;
     }
 }

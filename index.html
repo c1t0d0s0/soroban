@@ -20,6 +20,10 @@
                 <h1 class="app-title">そろばんれんしゅう</h1>
             </div>
             <div class="header-right">
+                <button id="guide-btn" class="pill-btn guide-btn" title="そろばんのつかいかた" aria-label="そろばんのつかいかた">
+                    <span class="btn-icon">📖</span>
+                    <span class="btn-text">つかいかた</span>
+                </button>
                 <button id="sound-toggle" class="icon-btn" title="おとのON/OFF" aria-label="おとの切り替え">
                     <span id="sound-icon">🔊</span>
                 </button>
@@ -94,6 +98,40 @@
                 <button id="new-question-button" class="btn btn-next" disabled>つぎへ ➔</button>
             </div>
         </main>
+    </div>
+
+    <!-- Tutorial Guide Modal -->
+    <div id="tutorial-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-modal-title">
+        <div class="modal-backdrop" id="modal-backdrop"></div>
+        <div class="modal-card">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-header-icon">📖</span>
+                    <h2 id="tutorial-modal-title" class="modal-title">そろばんのつかいかた</h2>
+                </div>
+                <button id="tutorial-close-btn" class="icon-btn close-btn" title="とじる" aria-label="ガイドをとじる">✖</button>
+            </div>
+
+            <!-- Step Progress Indicator -->
+            <div class="tutorial-progress">
+                <div class="step-dots" id="tutorial-step-dots"></div>
+                <div class="step-counter" id="tutorial-step-counter">1 / 4</div>
+            </div>
+
+            <!-- Modal Body Content -->
+            <div class="modal-body" id="tutorial-body">
+                <!-- Injected via JavaScript -->
+            </div>
+
+            <!-- Modal Footer Controls -->
+            <div class="modal-footer">
+                <button id="tutorial-prev-btn" class="btn btn-clear">◀ まえへ</button>
+                <div class="footer-spacer"></div>
+                <button id="tutorial-next-btn" class="btn btn-next">つぎへ ▶</button>
+                <button id="tutorial-finish-btn" class="btn btn-check hidden">れんしゅうへ！ ➔</button>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>
