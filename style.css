@@ -14,16 +14,20 @@
     --bg-gradient-2: #8ec5fc;
     --card-bg: #ffffff;
     
-    /* Soroban Specific Colors */
-    --frame-wood-dark: #5c3a21;
-    --frame-wood-light: #8b5a2b;
-    --board-bg: #f7e6c4;
-    --rod-color: #a88462;
-    --bead-gradient-start: #f3a646;
-    --bead-gradient-end: #d9741e;
-    --bead-active-start: #ff7b25;
-    --bead-active-end: #b33900;
-    --beam-color: #4a2e18;
+    /* Soroban Specific Colors — ebony frame, boxwood beads, brass rods */
+    --frame-wood-dark: #2a1810;
+    --frame-wood-mid: #4a3020;
+    --frame-wood-light: #6b4630;
+    --board-bg: #f3e4c6;
+    --rod-brass-dark: #7a6230;
+    --rod-brass-light: #f6e2a4;
+    --bead-highlight: #f6e4c0;
+    --bead-mid: #c9964e;
+    --bead-shadow: #7a5428;
+    --beam-color: #2a1810;
+    /* Shared by .soroban-board and .place-values so labels sit over the rods */
+    --board-border: 12px;
+    --board-pad-x: 18px;
 
     --font-pop: 'Mochiy Pop One', 'Comic Sans MS', cursive, sans-serif;
     --font-sub: 'Yusei Magic', sans-serif;
@@ -69,7 +73,7 @@ body {
     border-radius: 28px;
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15), 0 5px 15px rgba(0, 0, 0, 0.08);
     width: 100%;
-    max-width: 580px;
+    max-width: 680px;
     padding: 20px 24px;
     display: flex;
     flex-direction: column;
@@ -91,6 +95,7 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
 }
 
 .logo-icon {
@@ -108,6 +113,7 @@ body {
     color: #3a4750;
     letter-spacing: 0.5px;
     text-shadow: 1px 1px 0px #ffffff;
+    white-space: nowrap;
 }
 
 .header-right {
@@ -319,7 +325,7 @@ body {
     justify-content: space-around;
     width: 100%;
     max-width: 480px;
-    padding: 0 20px;
+    padding: 0 calc(var(--board-border) + var(--board-pad-x));
     margin-bottom: 3px;
 }
 
@@ -337,22 +343,44 @@ body {
     box-shadow: inset 0 -2px 0 rgba(0,0,0,0.1);
 }
 
-/* Soroban Board */
+/* Soroban Board — recessed light-wood deck inside a grained ebony frame */
 .soroban-board {
-    background: var(--board-bg);
-    border: 10px solid var(--frame-wood-dark);
-    border-radius: 16px;
-    padding: 10px 18px;
+    background:
+        repeating-linear-gradient(
+            180deg,
+            rgba(120, 78, 36, 0.045) 0px,
+            rgba(120, 78, 36, 0.045) 1px,
+            transparent 1px,
+            transparent 3px
+        ) padding-box,
+        linear-gradient(180deg, #f7ead0 0%, #e7d2ae 100%) padding-box,
+        repeating-linear-gradient(
+            108deg,
+            #24140e 0px,
+            #3d2818 2px,
+            #1c100c 3px,
+            #5c3e28 5px,
+            #2e1c12 8px
+        ) border-box;
+    border: var(--board-border) solid transparent;
+    border-radius: 10px;
+    padding: 10px var(--board-pad-x);
     display: flex;
     justify-content: space-around;
     width: 100%;
     max-width: 480px;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35), inset 0 0 20px rgba(0, 0, 0, 0.15);
+    box-shadow:
+        0 12px 24px rgba(40, 18, 8, 0.42),
+        inset 0 1px 0 rgba(255, 214, 160, 0.28),
+        inset 0 -3px 0 rgba(0, 0, 0, 0.45),
+        inset 2px 0 0 rgba(255, 200, 140, 0.14),
+        inset -2px 0 0 rgba(0, 0, 0, 0.38),
+        inset 0 0 14px rgba(70, 36, 12, 0.28);
     position: relative;
     user-select: none;
 }
 
-/* The Beam (梁) */
+/* The Beam (梁) — raised dark rail with a top highlight */
 .soroban-board::before {
     content: '';
     position: absolute;
@@ -360,47 +388,95 @@ body {
     left: 0;
     right: 0;
     height: 11px;
-    background: linear-gradient(to bottom, #5c3a21, #3a2211);
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+    background:
+        repeating-linear-gradient(
+            90deg,
+            rgba(255, 214, 160, 0.07) 0px,
+            transparent 2px,
+            rgba(0, 0, 0, 0.12) 3px,
+            transparent 6px
+        ),
+        linear-gradient(to bottom, #6a4630 0%, #3a2416 22%, #24160f 58%, #140c08 100%);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 214, 160, 0.38),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.55),
+        0 3px 4px rgba(0, 0, 0, 0.32);
     z-index: 10;
 }
 
-/* Rod (桁) - Centered Container */
+/* Rod (桁) — thin brass rod the beads slide on */
 .rod {
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 8px;
-    background-color: var(--rod-color);
-    height: 180px;
+    width: 3px;
+    background: linear-gradient(
+        to right,
+        #6e5428 0%,
+        #e8c56a 30%,
+        #fff3c4 50%,
+        #c9a04a 70%,
+        #6a5024 100%
+    );
+    height: 174px;
     position: relative;
-    border-radius: 4px;
-    box-shadow: inset 1px 0 3px rgba(0,0,0,0.4);
+    border-radius: 2px;
+    box-shadow: 0 0 1px rgba(40, 24, 8, 0.55);
     touch-action: manipulation;
 }
 
-/* Positioning Point (定位置 / 点) on beam */
+/* Positioning Point (定位置 / 点) — ivory inlay on the beam */
 .rod.positioning-point::after {
     content: '';
     position: absolute;
     top: 45px; /* Center on beam */
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 5px;
-    height: 5px;
-    background-color: #ffffff;
+    width: 6px;
+    height: 6px;
+    background: radial-gradient(circle at 35% 32%, #fffef8 0%, #f4e6c8 46%, #d9c49a 100%);
     border-radius: 50%;
     z-index: 15;
-    box-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+    box-shadow:
+        inset 0 -1px 1px rgba(80, 50, 20, 0.4),
+        0 1px 1px rgba(0, 0, 0, 0.45);
 }
 
-/* Bead (玉) - Perfectly Centered on Rod */
+/* Bead (玉) — lacquered boxwood bicone */
 .bead {
     width: 50px;
     height: 22px;
-    background: linear-gradient(to bottom, var(--bead-gradient-start), var(--bead-gradient-end));
-    border: 1px solid #7a4212;
-    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    background:
+        radial-gradient(ellipse 46% 26% at 38% 30%, rgba(255, 252, 240, 0.72), rgba(255, 252, 240, 0) 72%),
+        linear-gradient(
+            to bottom,
+            #f4e0b8 0%,
+            #e4c07e 20%,
+            #c9964e 40%,
+            #8a5c30 49%,
+            #6e4824 53%,
+            #a8743c 70%,
+            #c9a15c 100%
+        );
+    clip-path: polygon(
+        50% 0%,
+        68% 8%,
+        84% 24%,
+        97% 40%,
+        100% 50%,
+        97% 60%,
+        84% 76%,
+        68% 92%,
+        50% 100%,
+        32% 92%,
+        16% 76%,
+        3% 60%,
+        0% 50%,
+        3% 40%,
+        16% 24%,
+        32% 8%
+    );
+    filter: drop-shadow(0 1px 1px rgba(40, 20, 8, 0.5));
     cursor: pointer;
     transition: transform 0.16s cubic-bezier(0.34, 1.35, 0.64, 1);
     z-index: 20;
@@ -409,10 +485,6 @@ body {
     touch-action: none;
     user-select: none;
     -webkit-user-select: none;
-}
-
-.bead.active {
-    background: linear-gradient(to bottom, var(--bead-active-start), var(--bead-active-end));
 }
 
 .bead.dragging {
@@ -433,13 +505,13 @@ body {
     flex-direction: column;
     align-items: center;
     width: 100%;
-    margin-top: 46px; /* Gap below beam */
+    margin-top: 46px; /* Same travel to the beam as the heaven bead */
     gap: 2px;
 }
 
-/* Earth beads slide UP towards beam when active */
+/* Earth beads slide UP until the tip meets the underside of the beam */
 .earth-bead.active {
-    transform: translateY(-30px);
+    transform: translateY(-18px);
 }
 
 /* Staggered Gohasan (ご破算) sweep flash effect */
@@ -448,9 +520,9 @@ body {
 }
 
 @keyframes gohasanBeadSnap {
-    0% { filter: brightness(1.3); }
-    50% { transform: scale(1.06); filter: brightness(1.2); }
-    100% { filter: brightness(1); }
+    0% { filter: drop-shadow(0 1px 1px rgba(40, 20, 8, 0.5)) brightness(1.25); }
+    50% { transform: scale(1.06); filter: drop-shadow(0 1px 1px rgba(40, 20, 8, 0.5)) brightness(1.12); }
+    100% { filter: drop-shadow(0 1px 1px rgba(40, 20, 8, 0.5)) brightness(1); }
 }
 
 /* Live Soroban Value Display */
@@ -1269,19 +1341,20 @@ body {
         font-size: 1.45rem;
     }
 
-    .place-values {
-        padding: 0 12px;
-    }
-    
     .pv-item {
         width: 28px;
         height: 18px;
         font-size: 0.78rem;
     }
 
+    :root {
+        --board-border: 8px;
+        --board-pad-x: 12px;
+    }
+
     .soroban-board {
-        padding: 8px 12px;
-        border-width: 8px;
+        padding: 8px var(--board-pad-x);
+        border-width: var(--board-border);
         border-radius: 14px;
     }
 
@@ -1291,8 +1364,8 @@ body {
     }
 
     .rod {
-        height: 150px;
-        width: 7px;
+        height: 146px;
+        width: 2px;
     }
 
     .rod.positioning-point::after {
@@ -1315,12 +1388,12 @@ body {
     }
 
     .earth-beads {
-        margin-top: 38px;
+        margin-top: 40px;
         gap: 1px;
     }
 
     .earth-bead.active {
-        transform: translateY(-25px);
+        transform: translateY(-15px);
     }
 
     .soroban-value-display {

@@ -56,6 +56,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Web Audio API Wood Bead Synthesizer ---
     let audioCtx = null;
     let noiseBuffer = null;
+    let woodShaperCurve = null;
+
+    function getWoodShaperCurve() {
+        if (!woodShaperCurve) {
+            const n = 1024;
+            woodShaperCurve = new Float32Array(n);
+            for (let i = 0; i < n; i++) {
+                const x = (i / (n - 1)) * 2 - 1;
+                woodShaperCurve[i] = Math.tanh(2.4 * x);
+            }
+        }
+        return woodShaperCurve;
+    }
 
     function getAudioContext() {
         if (!audioCtx) {
@@ -67,10 +80,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (audioCtx && audioCtx.state === 'suspended') {
             audioCtx.resume();
         }
-        // Lazily initialize reusable noise buffer for high-frequency wood impact transients
+        // White-noise burst reused as the excitation for every wood impact
         if (audioCtx && !noiseBuffer) {
             const sampleRate = audioCtx.sampleRate || 44100;
-            const length = Math.floor(sampleRate * 0.05); // 50ms noise buffer
+            const length = Math.floor(sampleRate * 0.08);
             noiseBuffer = audioCtx.createBuffer(1, length, sampleRate);
             const data = noiseBuffer.getChannelData(0);
             for (let i = 0; i < length; i++) {
@@ -81,85 +94,66 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
-     * Synthesizes a single authentic wooden bead impact sound using physical modal resonance.
+     * One hardwood bead strike: a few-millisecond noise crack through
+     * inharmonic bandpass modes. Beam hits are brighter and shorter;
+     * bead-on-bead and frame hits keep a little more body.
      */
     function playSingleWoodClick(ctx, startTime, options = {}) {
-        const pitchMult = (options.pitchMult || 1.0) * (0.97 + Math.random() * 0.06);
+        if (!noiseBuffer) return;
+
+        const pitchMult = (options.pitchMult || 1.0) * (0.96 + Math.random() * 0.08);
         const volume = options.volume || 1.0;
         const isBeamHit = options.isBeamHit !== undefined ? options.isBeamHit : true;
 
-        // 1. High-frequency Snap / Attack Noise Transient (hard wood contact snap)
-        if (noiseBuffer) {
-            const noiseSource = ctx.createBufferSource();
-            noiseSource.buffer = noiseBuffer;
+        const shaper = ctx.createWaveShaper();
+        shaper.curve = getWoodShaperCurve();
+        shaper.oversample = '2x';
 
-            const noiseFilter = ctx.createBiquadFilter();
-            noiseFilter.type = 'bandpass';
-            noiseFilter.frequency.setValueAtTime((isBeamHit ? 4200 : 3600) * pitchMult, startTime);
-            noiseFilter.Q.setValueAtTime(3.2, startTime);
+        const master = ctx.createGain();
+        master.gain.setValueAtTime(0.72 * volume, startTime);
+        shaper.connect(master);
+        master.connect(ctx.destination);
 
-            const noiseGain = ctx.createGain();
-            noiseGain.gain.setValueAtTime(0.42 * volume, startTime);
-            noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.012);
+        const excite = (type, freq, q, gainValue, dur) => {
+            const src = ctx.createBufferSource();
+            src.buffer = noiseBuffer;
+            const filter = ctx.createBiquadFilter();
+            filter.type = type;
+            filter.frequency.setValueAtTime(Math.max(60, freq), startTime);
+            filter.Q.setValueAtTime(q, startTime);
+            const gain = ctx.createGain();
+            gain.gain.setValueAtTime(gainValue, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + dur);
+            src.connect(filter);
+            filter.connect(gain);
+            gain.connect(shaper);
+            src.start(startTime);
+            src.stop(startTime + dur + 0.02);
+        };
 
-            noiseSource.connect(noiseFilter);
-            noiseFilter.connect(noiseGain);
-            noiseGain.connect(ctx.destination);
+        // Dry "kach" — high band of the impact, gone in a few milliseconds
+        excite('highpass', (isBeamHit ? 4800 : 2600) * pitchMult, 0.7, isBeamHit ? 0.62 : 0.34, isBeamHit ? 0.005 : 0.008);
 
-            noiseSource.start(startTime);
-            noiseSource.stop(startTime + 0.015);
+        // Inharmonic boxwood modes. Ratios stay non-integer so the strike
+        // does not ring like a musical tone.
+        const base = (isBeamHit ? 980 : 760) * pitchMult;
+        const ratios = [1, 1.5, 2.2, 3.2, 4.6];
+        const decays = isBeamHit
+            ? [0.018, 0.014, 0.010, 0.007, 0.005]
+            : [0.036, 0.024, 0.016, 0.010, 0.007];
+        const gains = isBeamHit
+            ? [0.16, 0.24, 0.30, 0.20, 0.12]
+            : [0.28, 0.22, 0.14, 0.08, 0.04];
+        const qs = isBeamHit ? [7.5, 6.5, 5.5, 4.5, 3.5] : [5.5, 4.5, 3.8, 3.2, 2.6];
+
+        ratios.forEach((ratio, i) => {
+            excite('bandpass', base * ratio, qs[i], gains[i], decays[i]);
+        });
+
+        // Dull frame / bead-stack body. Beam hits stay dry without this.
+        if (!isBeamHit) {
+            excite('bandpass', 340 * pitchMult, 1.8, 0.16, 0.038);
         }
-
-        // 2. High Wood Mode (Hard surface collision click)
-        const oscHigh = ctx.createOscillator();
-        const gainHigh = ctx.createGain();
-        const fHighBase = (isBeamHit ? 2700 : 2300) * pitchMult;
-
-        oscHigh.type = 'sine';
-        oscHigh.frequency.setValueAtTime(fHighBase * 1.45, startTime);
-        oscHigh.frequency.exponentialRampToValueAtTime(fHighBase, startTime + 0.006);
-
-        gainHigh.gain.setValueAtTime(0.40 * volume, startTime);
-        gainHigh.gain.exponentialRampToValueAtTime(0.001, startTime + 0.020);
-
-        oscHigh.connect(gainHigh);
-        gainHigh.connect(ctx.destination);
-        oscHigh.start(startTime);
-        oscHigh.stop(startTime + 0.024);
-
-        // 3. Mid Wood Body Resonance ("tok" / "kachi")
-        const oscMid = ctx.createOscillator();
-        const gainMid = ctx.createGain();
-        const fMidBase = (isBeamHit ? 1350 : 1150) * pitchMult;
-
-        oscMid.type = 'sine';
-        oscMid.frequency.setValueAtTime(fMidBase * 1.30, startTime);
-        oscMid.frequency.exponentialRampToValueAtTime(fMidBase, startTime + 0.009);
-
-        gainMid.gain.setValueAtTime(0.35 * volume, startTime);
-        gainMid.gain.exponentialRampToValueAtTime(0.001, startTime + 0.028);
-
-        oscMid.connect(gainMid);
-        gainMid.connect(ctx.destination);
-        oscMid.start(startTime);
-        oscMid.stop(startTime + 0.032);
-
-        // 4. Low Wood Thud / Frame Box Resonance ("pok")
-        const oscLow = ctx.createOscillator();
-        const gainLow = ctx.createGain();
-        const fLowBase = (isBeamHit ? 580 : 490) * pitchMult;
-
-        oscLow.type = 'triangle';
-        oscLow.frequency.setValueAtTime(fLowBase * 1.25, startTime);
-        oscLow.frequency.exponentialRampToValueAtTime(fLowBase, startTime + 0.012);
-
-        gainLow.gain.setValueAtTime(0.22 * volume, startTime);
-        gainLow.gain.exponentialRampToValueAtTime(0.001, startTime + 0.036);
-
-        oscLow.connect(gainLow);
-        gainLow.connect(ctx.destination);
-        oscLow.start(startTime);
-        oscLow.stop(startTime + 0.040);
     }
 
     /**
